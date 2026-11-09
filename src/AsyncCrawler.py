@@ -1,6 +1,20 @@
 import asyncio
-import aiohttp
 from dataclasses import dataclass
+
+import aiohttp
+
+
+@dataclass
+class FetchResult:
+    url: str
+    status: int | None = None
+    data: str | None = None
+    error: str | None = None
+
+    @property
+    def is_success(self) -> bool:
+        return self.error is None and self.status is not None and 200 <= self.status < 300
+
 
 class AsyncCrawler:
 
@@ -31,7 +45,7 @@ class AsyncCrawler:
             sock_read=read_timeout
         )
 
-    async def fetch_url(self, url: str) -> str:
+    async def fetch_url(self, url: str) -> FetchResult:
         async with self.session_lock:
             if self.session is None or self.session.closed:
                 self.session = aiohttp.ClientSession(
@@ -44,19 +58,21 @@ class AsyncCrawler:
             try:
                 async with self.session.get(url) as response:
                     response.raise_for_status()
-                    return await response.text()
-            except aiohttp.ClientResponseError as e:
-                return str(e)
-            except asyncio.TimeoutError:
-                ...
-            except aiohttp.ClientError as e:
-                ...
+                    data = await response.text()
+                    return FetchResult(url=url, status=response.status, data=data)
+            except aiohttp.ClientResponseError as cre:
+                return FetchResult(url=url, status=cre.status, error=str(cre))
+            except asyncio.TimeoutError as te:
+                return FetchResult(url=url, error=str(te))
+            except aiohttp.ClientError as ce:
+                return FetchResult(url=url, error=str(ce))
 
-    async def fetch_urls(self, urls: list[str]) -> dict[str, str]:
-        results = await asyncio.gather(
-            *(self.fetch_url(url) for url in urls)
+    async def fetch_urls(self, urls: list[str]) -> list[FetchResult]:
+        return list(
+            await asyncio.gather(
+                *(self.fetch_url(url) for url in urls)
+            )
         )
-        return dict(zip(urls, results))
 
     async def close(self) -> None:
         if self.session is not None and not self.session.closed:
@@ -67,11 +83,3 @@ class AsyncCrawler:
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         await self.close()
-
-
-@dataclass
-class HttpResponse:
-    url: str
-    status: int
-    data: Optional[str] = None
-    error: Optional[str] = None
