@@ -1,11 +1,15 @@
+import asyncio
+import aiohttp
+from dataclasses import dataclass
+
 class AsyncCrawler:
 
     def __init__(
             self,
             max_concurrent: int = 10,
             max_connections: int = 10,
-            connect_timeout: int = 10,
-            read_timeout: int = 30
+            connect_timeout: float = 10.0,
+            read_timeout: float = 30.0
     ) -> None:
         if max_concurrent < 1:
             raise ValueError("max_concurrent must be greater than 0")
@@ -37,9 +41,16 @@ class AsyncCrawler:
                     )
                 )
         async with self.semaphore:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                return await response.text()
+            try:
+                async with self.session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.text()
+            except aiohttp.ClientResponseError as e:
+                return str(e)
+            except asyncio.TimeoutError:
+                ...
+            except aiohttp.ClientError as e:
+                ...
 
     async def fetch_urls(self, urls: list[str]) -> dict[str, str]:
         results = await asyncio.gather(
@@ -56,3 +67,11 @@ class AsyncCrawler:
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         await self.close()
+
+
+@dataclass
+class HttpResponse:
+    url: str
+    status: int
+    data: Optional[str] = None
+    error: Optional[str] = None
