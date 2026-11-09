@@ -45,15 +45,15 @@ pip install aiohttp aiofiles
 Пример использования:
 ```python
 async def main():
-crawler = AsyncCrawler(max_concurrent=5)
-urls = [
-"https://example.com",
-"https://httpbin.org/delay/1",
-"https://httpbin.org/delay/2",
-]
-results = await crawler.fetch_urls(urls)
-await crawler.close()
-print(f"Загружено {len(results)} страниц")
+    crawler = AsyncCrawler(max_concurrent=5)
+    urls = [
+        "https://example.com",
+        "https://httpbin.org/delay/1",
+        "https://httpbin.org/delay/2",
+    ]
+    results = await crawler.fetch_urls(urls)
+    await crawler.close()
+    print(f"Загружено {len(results)} страниц")
 
 asyncio.run(main())
 ```
