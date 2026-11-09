@@ -1,7 +1,10 @@
 import asyncio
+import logging
 from dataclasses import dataclass
 
 import aiohttp
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -56,15 +59,20 @@ class AsyncCrawler:
                 )
         async with self.semaphore:
             try:
+                logger.info("Starting download: %s", url)
                 async with self.session.get(url) as response:
                     response.raise_for_status()
                     data = await response.text()
+                    logger.info("Successfully downloaded: %s, status: %s", url, response.status)
                     return FetchResult(url=url, status=response.status, data=data)
             except aiohttp.ClientResponseError as cre:
+                logger.warning("HTTP error for %s: %s, status: %s", url, type(cre).__name__, cre.status)
                 return FetchResult(url=url, status=cre.status, error=str(cre))
             except asyncio.TimeoutError as te:
+                logger.warning("Timeout error for %s: %s", url, type(te).__name__)
                 return FetchResult(url=url, error=str(te))
             except aiohttp.ClientError as ce:
+                logger.error("Client error for %s: %s", url, type(ce).__name__)
                 return FetchResult(url=url, error=str(ce))
 
     async def fetch_urls(self, urls: list[str]) -> list[FetchResult]:
