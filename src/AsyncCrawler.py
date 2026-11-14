@@ -48,7 +48,9 @@ class AsyncCrawler:
             sock_read=read_timeout
         )
 
-    async def fetch_url(self, url: str) -> FetchResult:
+    async def _ensure_session(self) -> aiohttp.ClientSession:
+        if self.session is not None and not self.session.closed:
+            return self.session
         async with self.session_lock:
             if self.session is None or self.session.closed:
                 self.session = aiohttp.ClientSession(
@@ -57,10 +59,14 @@ class AsyncCrawler:
                         limit=self.max_connections
                     )
                 )
+        return self.session
+
+    async def fetch_url(self, url: str) -> FetchResult:
+        session = await self._ensure_session()
         async with self.semaphore:
             try:
                 logger.info("Starting download: %s", url)
-                async with self.session.get(url) as response:
+                async with session.get(url) as response:
                     response.raise_for_status()
                     data = await response.text()
                     logger.info("Successfully downloaded: %s, status: %s", url, response.status)
