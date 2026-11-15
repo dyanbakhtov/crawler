@@ -4,6 +4,11 @@ from dataclasses import dataclass
 
 import aiohttp
 
+try:
+    from src.HTMLParser import HTMLParser
+except ImportError:
+    from HTMLParser import HTMLParser
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +31,8 @@ class AsyncCrawler:
             max_concurrent: int = 10,
             max_connections: int = 10,
             connect_timeout: float = 10.0,
-            read_timeout: float = 30.0
+            read_timeout: float = 30.0,
+            parser: HTMLParser | None = None
     ) -> None:
         if max_concurrent < 1:
             raise ValueError("max_concurrent must be greater than 0")
@@ -39,6 +45,7 @@ class AsyncCrawler:
 
         self.max_concurrent = max_concurrent
         self.max_connections = max_connections
+        self.parser = parser or HTMLParser()
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.session = None
         self.session_lock = asyncio.Lock()
@@ -87,6 +94,13 @@ class AsyncCrawler:
                 *(self.fetch_url(url) for url in urls)
             )
         )
+
+    async def fetch_and_parse(self, url: str) -> dict:
+        fetch_result = await self.fetch_url(url)
+        if not fetch_result.is_success:
+            logger.warning("Error fetching page %s: %s", url, fetch_result.error)
+            return {"url": url, "title": None, "text": "", "links": [], "metadata": {}}
+        return await self.parser.parse_html(fetch_result.data or "", url)
 
     async def close(self) -> None:
         if self.session is not None and not self.session.closed:
