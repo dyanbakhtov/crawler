@@ -65,3 +65,42 @@ class HTMLParser:
             if tag and tag.get("content"):
                 metadata[name] = tag["content"]
         return metadata
+
+    def extract_images(self, soup: BeautifulSoup, base_url: str = "") -> list[dict]:
+        images = []
+        for tag in soup.find_all("img"):
+            src = tag.get("src")
+            if isinstance(src, str) and src.strip():
+                alt = tag.get("alt")
+                images.append({
+                    "src": urljoin(base_url, src) if base_url else src,
+                    "alt": alt if isinstance(alt, str) else "",
+                })
+        return images
+
+    def extract_headings(self, soup: BeautifulSoup) -> list[dict]:
+        return [
+            {"level": tag.name, "text": tag.get_text(strip=True)}
+            for tag in soup.find_all(["h1", "h2", "h3"])
+        ]
+
+    def extract_tables(self, soup: BeautifulSoup) -> list[list[list[str]]]:
+        return [
+            [
+                [cell.get_text(strip=True) for cell in row.find_all(["td", "th"])]
+                for row in table.find_all("tr")
+            ]
+            for table in soup.find_all("table")
+        ]
+
+    def extract_lists(self, soup: BeautifulSoup) -> list[dict]:
+        return [
+            {
+                "type": tag.name,
+                "items": [
+                    li.get_text(strip=True)
+                    for li in tag.find_all("li", recursive=False)
+                ],
+            }
+            for tag in soup.find_all(["ul", "ol"])
+        ]
