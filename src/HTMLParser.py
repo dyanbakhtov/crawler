@@ -12,14 +12,21 @@ class HTMLParser:
     def __init__(self, parser: str = "lxml") -> None:
         self.parser = parser
 
+    def make_soup(self, html: str) -> BeautifulSoup | None:
+        try:
+            return BeautifulSoup(html, self.parser)
+        except Exception as e:
+            logger.warning("Ошибка разбора HTML: %s", e)
+            return None
+
     async def parse_html(self, html: str, url: str) -> dict:
         result = {"url": url, "title": None, "text": "", "links": [], "metadata": {}}
-        try:
-            soup = BeautifulSoup(html, self.parser)
-        except Exception as e:
-            logger.warning("Ошибка разбора HTML %s: %s", url, e)
+        soup = self.make_soup(html)
+        if soup is None:
             return result
+        return self._parse_soup(soup, url, result)
 
+    def _parse_soup(self, soup: BeautifulSoup, url: str, result: dict) -> dict:
         extractors = {
             "title": lambda: soup.title.string if soup.title else None,
             "text": lambda: self.extract_text(soup),
@@ -65,12 +72,14 @@ class HTMLParser:
 
     def extract_metadata(self, soup: BeautifulSoup) -> dict:
         metadata = {}
-        if soup.title and soup.title.string:
-            metadata["title"] = soup.title.string.strip()
+        title = soup.title.string if soup.title else None
+        if title:
+            metadata["title"] = title.strip()
         for name in ("description", "keywords"):
             tag = soup.find("meta", attrs={"name": name})
-            if tag and tag.get("content"):
-                metadata[name] = tag["content"]
+            content = tag.get("content") if tag else None
+            if isinstance(content, str) and content:
+                metadata[name] = content
         return metadata
 
     def extract_images(self, soup: BeautifulSoup, base_url: str = "") -> list[dict]:

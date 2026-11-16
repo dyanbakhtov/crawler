@@ -18,13 +18,14 @@ URLS = [
     "https://example.com",
     "https://python.org",
     "https://httpbin.org/html",
+    "https://httpbin.org/status/404"
 ]
 
 MAX_LINKS_SHOWN = 5
 
 
 def print_page(summary: dict, headings: list[dict]) -> None:
-    print(f"\n=== {summary['url']} ===")
+    print(f"\n✅ === {summary['url']} ===")
 
     print("Заголовки:")
     for heading in headings:
@@ -58,10 +59,13 @@ async def main():
         summaries = []
         for fetch_result, url in zip(fetch_results, URLS):
             if not fetch_result.is_success:
-                print(f"❌ {url} | HTTP {fetch_result.status} | {fetch_result.error}")
+                print(f"\n❌ {url} | HTTP {fetch_result.status} | {fetch_result.error}")
                 continue
 
-            soup = BeautifulSoup(fetch_result.data, parser.parser)
+            soup = parser.make_soup(fetch_result.data)
+            if soup is None:
+                print(f"\n❌ {url} | не удалось разобрать HTML")
+                continue
             headings = parser.extract_headings(soup)
             page = await parser.parse_html(fetch_result.data, url)
 
