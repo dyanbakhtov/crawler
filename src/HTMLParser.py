@@ -22,13 +22,13 @@ class HTMLParser:
             return None
 
     async def parse_html(self, html: str, url: str) -> dict:
-        result = empty_page_result(url)
         soup = self.make_soup(html)
         if soup is None:
-            return result
-        return self._parse_soup(soup, url, result)
+            return empty_page_result(url)
+        return self._parse_soup(soup, url)
 
-    def _parse_soup(self, soup: BeautifulSoup, url: str, result: dict) -> dict:
+    def _parse_soup(self, soup: BeautifulSoup, url: str) -> dict:
+        result = empty_page_result(url)
         extractors = {
             "title": lambda: soup.title.string if soup.title else None,
             "text": lambda: self.extract_text(soup),
