@@ -13,18 +13,25 @@ class HTMLParser:
         self.parser = parser
 
     async def parse_html(self, html: str, url: str) -> dict:
+        result = {"url": url, "title": None, "text": "", "links": [], "metadata": {}}
         try:
             soup = BeautifulSoup(html, self.parser)
-            return {
-                "url": url,
-                "title": soup.title.string if soup.title else None,
-                "text": self.extract_text(soup),
-                "links": self.extract_links(soup, url),
-                "metadata": self.extract_metadata(soup),
-            }
         except Exception as e:
-            logger.warning("Ошибка парсинга %s: %s", url, e)
-            return {"url": url, "title": None, "text": "", "links": [], "metadata": {}}
+            logger.warning("Ошибка разбора HTML %s: %s", url, e)
+            return result
+
+        extractors = {
+            "title": lambda: soup.title.string if soup.title else None,
+            "text": lambda: self.extract_text(soup),
+            "links": lambda: self.extract_links(soup, url),
+            "metadata": lambda: self.extract_metadata(soup),
+        }
+        for key, extractor in extractors.items():
+            try:
+                result[key] = extractor()
+            except Exception as e:
+                logger.warning("Ошибка извлечения %s для %s: %s", key, url, e)
+        return result
 
     def extract_links(
             self,
