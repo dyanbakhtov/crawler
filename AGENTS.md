@@ -19,7 +19,7 @@ Staged learning project: an async web crawler built day by day (Python 3.14, asy
 
 ## Code conventions
 
-- New modules go in `src/` as loose files (not a package). Note the two import styles: tests use `from src.AsyncCrawler import ...`, but `src/main.py` uses flat `from AsyncCrawler import ...` (works only because `python src/main.py` puts `src/` first on `sys.path`). New entrypoint scripts should follow the `main.py` pattern; test imports follow the `src.` pattern. Module-to-module imports inside `src/` must use the `try: from src.X import ... / except ImportError: from X import ...` fallback (see `AsyncCrawler.py`) so both entry styles keep working.
+- New modules go in `src/` as loose files (not a package). Note the two import styles: tests use `from src.AsyncCrawler import ...`, but `src/crawler_demo.py` uses flat `from AsyncCrawler import ...` (works only because `python src/main.py` puts `src/` first on `sys.path`). New entrypoint scripts should follow the `crawler_demo.py` pattern; test imports follow the `src.` pattern. Module-to-module imports inside `src/` must use the `try: from src.X import ... / except ImportError: from X import ...` fallback (see `AsyncCrawler.py`) so both entry styles keep working.
 - Fetch methods never raise on network/HTTP errors — they return a `FetchResult` with `error` set; callers check `result.is_success`. Keep that contract.
 - The crawler must be used as an async context manager (`async with AsyncCrawler() as crawler:`) so the `aiohttp.ClientSession` is closed; the session is created lazily under a lock.
 - All network operations must be async; concurrency via `asyncio.Semaphore(max_concurrent)`, pooling via `TCPConnector(limit=max_connections)`.
