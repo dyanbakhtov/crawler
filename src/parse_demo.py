@@ -22,24 +22,27 @@ URLS = [
 ]
 
 MAX_LINKS_SHOWN = 5
+MAX_HEADINGS_SHOWN = 5
 
 
-def print_page(summary: dict, headings: list[dict]) -> None:
+def print_page(summary: dict) -> None:
     print(f"\n✅ === {summary['url']} ===")
-
-    print("Заголовки:")
-    for heading in headings:
-        print(f"  [{heading['level']}] {heading['text']}")
-
-    print("Итог:")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
-def build_summary(parser: HTMLParser, soup: BeautifulSoup, page: dict, url: str) -> dict:
+def build_summary(
+        parser: HTMLParser,
+        soup: BeautifulSoup,
+        page: dict,
+        url: str,
+        headings: list[dict]
+) -> dict:
     links = page["links"]
     return {
         "url": url,
         "title": page["title"],
+        "headings_count": len(headings),
+        "headings": headings[:MAX_HEADINGS_SHOWN],
         "text_length": len(page["text"]),
         "links_count": len(links),
         "links": links[:MAX_LINKS_SHOWN],
@@ -69,9 +72,9 @@ async def main():
             headings = parser.extract_headings(soup)
             page = await parser.parse_html(fetch_result.data, url)
 
-            summary = build_summary(parser, soup, page, url)
+            summary = build_summary(parser, soup, page, url, headings)
             summaries.append(summary)
-            print_page(summary, headings)
+            print_page(summary)
 
         # Общая статистика
         print("\n--- Статистика ---")

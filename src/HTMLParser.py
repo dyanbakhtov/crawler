@@ -1,10 +1,12 @@
 import logging
-from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+def empty_page_result(url: str) -> dict:
+    return {"url": url, "title": None, "text": "", "links": [], "metadata": {}}
 
 
 class HTMLParser:
@@ -20,7 +22,7 @@ class HTMLParser:
             return None
 
     async def parse_html(self, html: str, url: str) -> dict:
-        result = {"url": url, "title": None, "text": "", "links": [], "metadata": {}}
+        result = empty_page_result(url)
         soup = self.make_soup(html)
         if soup is None:
             return result
@@ -64,7 +66,7 @@ class HTMLParser:
         parsed = urlparse(url)
         return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
-    def extract_text(self, soup: BeautifulSoup, selector: Optional[str] = None) -> str:
+    def extract_text(self, soup: BeautifulSoup, selector: str | None = None) -> str:
         if selector:
             elements = soup.select(selector)
             return "\n".join(el.get_text(strip=True) for el in elements)

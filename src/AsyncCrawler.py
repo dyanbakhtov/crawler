@@ -5,9 +5,9 @@ from dataclasses import dataclass
 import aiohttp
 
 try:
-    from src.HTMLParser import HTMLParser
+    from src.HTMLParser import HTMLParser, empty_page_result
 except ImportError:
-    from HTMLParser import HTMLParser
+    from HTMLParser import HTMLParser, empty_page_result
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class AsyncCrawler:
         self.max_connections = max_connections
         self.parser = parser or HTMLParser()
         self.semaphore = asyncio.Semaphore(max_concurrent)
-        self.session = None
+        self.session: aiohttp.ClientSession | None = None
         self.session_lock = asyncio.Lock()
 
         self.timeout = aiohttp.ClientTimeout(
@@ -59,14 +59,16 @@ class AsyncCrawler:
         if self.session is not None and not self.session.closed:
             return self.session
         async with self.session_lock:
-            if self.session is None or self.session.closed:
-                self.session = aiohttp.ClientSession(
+            session = self.session
+            if session is None or session.closed:
+                session = aiohttp.ClientSession(
                     timeout=self.timeout,
                     connector=aiohttp.TCPConnector(
                         limit=self.max_connections
                     )
                 )
-        return self.session
+                self.session = session
+            return session
 
     async def fetch_url(self, url: str) -> FetchResult:
         session = await self._ensure_session()
@@ -78,15 +80,15 @@ class AsyncCrawler:
                     data = await response.text()
                     logger.info("Successfully downloaded: %s, status: %s", url, response.status)
                     return FetchResult(url=url, status=response.status, data=data)
-            except aiohttp.ClientResponseError as cre:
-                logger.warning("HTTP error for %s: %s, status: %s", url, type(cre).__name__, cre.status)
-                return FetchResult(url=url, status=cre.status, error=str(cre))
-            except asyncio.TimeoutError as te:
-                logger.warning("Timeout error for %s: %s", url, type(te).__name__)
-                return FetchResult(url=url, error=str(te))
-            except aiohttp.ClientError as ce:
-                logger.error("Client error for %s: %s", url, type(ce).__name__)
-                return FetchResult(url=url, error=str(ce))
+            except aiohttp.ClientResponseError as exc:
+                logger.warning("HTTP error for %s: %s, status: %s", url, type(exc).__name__, exc.status)
+                return FetchResult(url=url, status=exc.status, error=str(exc))
+            except asyncio.TimeoutError as exc:
+                logger.warning("Timeout error for %s: %s", url, type(exc).__name__)
+                return FetchResult(url=url, error=str(exc))
+            except aiohttp.ClientError as exc:
+                logger.error("Client error for %s: %s", url, type(exc).__name__)
+                return FetchResult(url=url, error=str(exc))
 
     async def fetch_urls(self, urls: list[str]) -> list[FetchResult]:
         return list(
@@ -99,7 +101,7 @@ class AsyncCrawler:
         fetch_result = await self.fetch_url(url)
         if not fetch_result.is_success:
             logger.warning("Error fetching page %s: %s", url, fetch_result.error)
-            return {"url": url, "title": None, "text": "", "links": [], "metadata": {}}
+            return empty_page_result(url)
         return await self.parser.parse_html(fetch_result.data or "", url)
 
     async def close(self) -> None:
