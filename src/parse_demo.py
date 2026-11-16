@@ -65,8 +65,9 @@ async def main():
                 print(f"\n❌ {url} | HTTP {fetch_result.status} | {fetch_result.error}")
                 continue
 
-            soup = parser.make_soup(fetch_result.data)
-            if soup is None:
+            try:
+                soup = BeautifulSoup(fetch_result.data, parser.parser)
+            except Exception:
                 print(f"\n❌ {url} | не удалось разобрать HTML")
                 continue
             headings = parser.extract_headings(soup)

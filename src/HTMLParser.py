@@ -14,16 +14,11 @@ class HTMLParser:
     def __init__(self, parser: str = "lxml") -> None:
         self.parser = parser
 
-    def make_soup(self, html: str) -> BeautifulSoup | None:
-        try:
-            return BeautifulSoup(html, self.parser)
-        except Exception as e:
-            logger.warning("Ошибка разбора HTML: %s", e)
-            return None
-
     async def parse_html(self, html: str, url: str) -> dict:
-        soup = self.make_soup(html)
-        if soup is None:
+        try:
+            soup = BeautifulSoup(html, self.parser)
+        except Exception as e:
+            logger.warning("Ошибка разбора HTML %s: %s", url, e)
             return empty_page_result(url)
         return self._parse_soup(soup, url)
 
